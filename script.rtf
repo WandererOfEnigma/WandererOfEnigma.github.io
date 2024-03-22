@@ -148,7 +148,7 @@
         maxZoom: 19,\
     \}).addTo(map);\
 \
-    // Subscribe to MQTT topic for updating map\
+    // Subscribe to MQTT ENGO551/Arnold/my_temperature topic for updating map\
     if (client) \{\
         client.onMessageArrived = function(message) \{\
             let payload = JSON.parse(message.payloadString);\
