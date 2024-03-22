@@ -74,7 +74,7 @@
         \}\
     \});\
 \
-// Publish message for any topic \
+    // Publish message\
     let topicInput = document.getElementById('topicInput');\
     let messageInput = document.getElementById('messageInput');\
     let publishBtn = document.getElementById('publishBtn');\
@@ -98,7 +98,7 @@
         client.send(messageObject);\
     \});\
 \
-    // Publish message and add marker to the map for topic ENGO551/Arnold/my_temperature\
+    // Share status button\
     let shareStatusBtn = document.getElementById('shareStatusBtn');\
 \
     shareStatusBtn.addEventListener('click', function() \{\
@@ -117,29 +117,10 @@
         let message = JSON.stringify(geoJson);\
         let topic = 'ENGO551/Arnold/my_temperature'.replace(' ', '_');\
 \
-        // Publish GeoJSON message to MQTT broker\
+        // Publish GeoJSON message\
         let messageObject = new Paho.MQTT.Message(message);\
         messageObject.destinationName = topic;\
         client.send(messageObject);\
-\
-        // Add marker to the map\
-        let coordinates = geoJson.geometry.coordinates;\
-        let temperature = geoJson.properties.temperature;\
-\
-        let marker = L.marker([coordinates[1], coordinates[0]]).addTo(map);\
-        marker.bindPopup('Temperature: ' + temperature + '\'b0C').openPopup();\
-        marker.on('click', function() \{\
-            alert('Temperature: ' + temperature + '\'b0C');\
-        \});\
-\
-        // Change marker color based on temperature\
-        if (temperature < 10) \{\
-            marker.setIcon(L.icon(\{iconUrl: 'blue-marker.png'\}));\
-        \} else if (temperature < 30) \{\
-            marker.setIcon(L.icon(\{iconUrl: 'green-marker.png'\}));\
-        \} else \{\
-            marker.setIcon(L.icon(\{iconUrl: 'red-marker.jpeg'\}));\
-        \}\
     \});\
 \
     // Leaflet map\
@@ -151,24 +132,32 @@
     // Subscribe to MQTT topic for updating map\
     if (client) \{\
         client.onMessageArrived = function(message) \{\
-            let payload = JSON.parse(message.payloadString);\
-            let coordinates = payload.geometry.coordinates;\
-            let temperature = payload.properties.temperature;\
+            console.log('Message received:', message.payloadString); // Log received message\
 \
-            // Update map\
-            let marker = L.marker([coordinates[1], coordinates[0]]).addTo(map);\
-            marker.bindPopup('Temperature: ' + temperature + '\'b0C').openPopup();\
-            marker.on('click', function() \{\
-                alert('Temperature: ' + temperature + '\'b0C');\
-            \});\
+            try \{\
+                let payload = JSON.parse(message.payloadString);\
+                let coordinates = payload.geometry.coordinates;\
+                let temperature = payload.properties.temperature;\
 \
-            // Change marker color based on temperature\
-            if (temperature < 10) \{\
-                marker.setIcon(L.icon(\{iconUrl: 'blue-marker.png'\}));\
-            \} else if (temperature < 30) \{\
-                marker.setIcon(L.icon(\{iconUrl: 'green-marker.png'\}));\
-            \} else \{\
-                marker.setIcon(L.icon(\{iconUrl: 'red-marker.jpeg'\}));\
+                console.log('Parsed payload:', payload); // Log parsed payload\
+\
+                // Update map\
+                let marker = L.marker([coordinates[1], coordinates[0]]).addTo(map);\
+                marker.bindPopup('Temperature: ' + temperature + '\'b0C').openPopup();\
+                marker.on('click', function() \{\
+                    alert('Temperature: ' + temperature + '\'b0C');\
+                \});\
+\
+                // Change marker color based on temperature\
+                if (temperature < 10) \{\
+                    marker.setIcon(L.icon(\{iconUrl: 'blue-marker.png'\}));\
+                \} else if (temperature < 30) \{\
+                    marker.setIcon(L.icon(\{iconUrl: 'green-marker.png'\}));\
+                \} else \{\
+                    marker.setIcon(L.icon(\{iconUrl: 'red-marker.jpeg'\}));\
+                \}\
+            \} catch (error) \{\
+                console.error('Error processing message:', error); // Log any errors\
             \}\
         \};\
     \}\

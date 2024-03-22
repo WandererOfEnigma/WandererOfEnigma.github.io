@@ -49,9 +49,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 startBtn.disabled = true;
                 endBtn.disabled = false;
 
-                // Subscribe to MQTT topics for updating map
+                // Subscribe to MQTT topic for updating map
                 client.subscribe('ENGO551/Arnold/my_temperature');
-                client.subscribe('ENGO551/Arnold/add_marker'); // Add subscription to add_marker topic
             },
             onFailure: function(errorMessage) {
                 statusMsg.textContent = 'Failed to connect: ' + errorMessage.errorMessage;
@@ -68,38 +67,63 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Leaflet map
-    let map = L.map('map').setView([0, 0], 2);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-    }).addTo(map);
+// Publish message for any topic 
+    let topicInput = document.getElementById('topicInput');
+    let messageInput = document.getElementById('messageInput');
+    let publishBtn = document.getElementById('publishBtn');
 
-    // Subscribe to MQTT topic for updating map
-    if (client) {
-        client.onMessageArrived = function(message) {
-            let topic = message.destinationName;
-            let payload = JSON.parse(message.payloadString);
+    publishBtn.addEventListener('click', function() {
+        if (!client || !client.isConnected()) {
+            alert('Please establish connection with MQTT Broker first.');
+            return;
+        }
 
-            if (topic === 'ENGO551/Arnold/my_temperature') {
-                let coordinates = payload.geometry.coordinates;
-                let temperature = payload.properties.temperature;
+        let topic = topicInput.value.trim();
+        let message = messageInput.value.trim();
 
-                // Update map with temperature marker
-                addTemperatureMarker(coordinates, temperature);
-            } else if (topic === 'ENGO551/Arnold/add_marker') {
-                let coordinates = payload.geometry.coordinates;
-                let temperature = payload.properties.temperature;
+        if (!topic || !message) {
+            alert('Please provide MQTT Topic and Message.');
+            return;
+        }
 
-                // Add marker to the map
-                addTemperatureMarker(coordinates, temperature);
+        let messageObject = new Paho.MQTT.Message(message);
+        messageObject.destinationName = topic;
+        client.send(messageObject);
+    });
+
+    // Publish message and add marker to the map for topic ENGO551/Arnold/my_temperature
+    let shareStatusBtn = document.getElementById('shareStatusBtn');
+
+    shareStatusBtn.addEventListener('click', function() {
+        // Generate GeoJSON message
+        let geoJson = {
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: [longitude, latitude]
+            },
+            properties: {
+                temperature: Math.floor(Math.random() * 61) - 40 // Random temperature between -40 to 60
             }
         };
-    }
 
-    // Function to add temperature marker
-    function addTemperatureMarker(coordinates, temperature) {
+        let message = JSON.stringify(geoJson);
+        let topic = 'ENGO551/Arnold/my_temperature'.replace(' ', '_');
+
+        // Publish GeoJSON message to MQTT broker
+        let messageObject = new Paho.MQTT.Message(message);
+        messageObject.destinationName = topic;
+        client.send(messageObject);
+
+        // Add marker to the map
+        let coordinates = geoJson.geometry.coordinates;
+        let temperature = geoJson.properties.temperature;
+
         let marker = L.marker([coordinates[1], coordinates[0]]).addTo(map);
         marker.bindPopup('Temperature: ' + temperature + '°C').openPopup();
+        marker.on('click', function() {
+            alert('Temperature: ' + temperature + '°C');
+        });
 
         // Change marker color based on temperature
         if (temperature < 10) {
@@ -109,6 +133,37 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             marker.setIcon(L.icon({iconUrl: 'red-marker.jpeg'}));
         }
+    });
+
+    // Leaflet map
+    let map = L.map('map').setView([0, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+    }).addTo(map);
+
+    // Subscribe to MQTT topic for updating map
+    if (client) {
+        client.onMessageArrived = function(message) {
+            let payload = JSON.parse(message.payloadString);
+            let coordinates = payload.geometry.coordinates;
+            let temperature = payload.properties.temperature;
+
+            // Update map
+            let marker = L.marker([coordinates[1], coordinates[0]]).addTo(map);
+            marker.bindPopup('Temperature: ' + temperature + '°C').openPopup();
+            marker.on('click', function() {
+                alert('Temperature: ' + temperature + '°C');
+            });
+
+            // Change marker color based on temperature
+            if (temperature < 10) {
+                marker.setIcon(L.icon({iconUrl: 'blue-marker.png'}));
+            } else if (temperature < 30) {
+                marker.setIcon(L.icon({iconUrl: 'green-marker.png'}));
+            } else {
+                marker.setIcon(L.icon({iconUrl: 'red-marker.jpeg'}));
+            }
+        };
     }
 
     // Geolocation API
